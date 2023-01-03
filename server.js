@@ -38,6 +38,12 @@ const main = async () => {
   app.use(morgan(logMiddleware));
   app.use(favicon(path.resolve(__dirname, './src/public', 'favicon.ico')));
 
+  app.use('/', (req, res) => {
+    res.json({
+      message: 'Pm-tool-worker'
+    });
+  });
+
   /**
    * Rabbit MQ
    */
