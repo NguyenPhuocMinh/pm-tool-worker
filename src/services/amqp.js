@@ -32,7 +32,10 @@ const Init = async () => {
     logger.log({
       level: constants.LOG_LEVELS.ERROR,
       message: 'Func subscriber has error',
-      err
+      args: {
+        errName: err.name,
+        errMsg: err.message
+      }
     });
 
     const operation = retry.operation(options.retryOptions);
@@ -41,7 +44,10 @@ const Init = async () => {
         logger.log({
           level: constants.LOG_LEVELS.ERROR,
           message: `Unable to connect to the RabbitMQ. Retrying(${current})`,
-          err
+          args: {
+            errName: err.name,
+            errMsg: err.message
+          }
         });
         if (current > options.retryOptions.retries) {
           process.exit(0);
@@ -88,7 +94,10 @@ const subscriber = async (queueName, workersHandleMsg, autoAck = true) => {
     logger.log({
       level: constants.LOG_LEVELS.ERROR,
       message: 'Func subscriber has error',
-      err
+      args: {
+        errName: err.name,
+        errMsg: err.message
+      }
     });
     throw err;
   }

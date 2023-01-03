@@ -1,20 +1,23 @@
 'use strict';
 
+import constants from '../constants/index.js';
 // core
 import loggerManager from '../core/logger.js';
 
-const loggerFactory = loggerManager();
+const logger = loggerManager();
 
 const handleSendMailChangePassword = async (msg) => {
   try {
-    loggerFactory.info(`Func handleSendMailChangePassword has been start`);
+    logger.log({
+      level: constants.LOG_LEVELS.INFO,
+      message: 'Func handleSendMailChangePassword has been start'
+    });
     const parseData = JSON.parse(msg.content.toString());
-    console.log(
-      '🚀 ~ file: index.js:11 ~ handleWorkerSendMailPayment ~ parseData',
-      parseData
-    );
-    const { customerEmail, receiptURL } = parseData;
-
+    logger.log({
+      level: constants.LOG_LEVELS.INFO,
+      message: '[x] handleSendMailChangePassword received data',
+      args: parseData
+    });
     // const source = fs.readFileSync(
     //   path.join(__dirname, '../../public', '/templates/mail-payment.html'),
     //   'utf8'
@@ -32,11 +35,19 @@ const handleSendMailChangePassword = async (msg) => {
     //   })
     // };
     // await mailer.SendMailMessage(mailOptions);
-    loggerFactory.info(`Func handleSendMailChangePassword has been end`);
+    logger.log({
+      level: constants.LOG_LEVELS.INFO,
+      message: 'Func handleSendMailChangePassword has been end'
+    });
   } catch (err) {
     console.error(err);
-    loggerFactory.error(`Func handleSendMailChangePassword has error`, {
-      args: err.message
+    logger.log({
+      level: constants.LOG_LEVELS.ERROR,
+      message: 'Func handleSendMailChangePassword has been error',
+      args: {
+        errName: err.name,
+        errMsg: err.message
+      }
     });
     throw err;
   }
