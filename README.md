@@ -85,7 +85,7 @@ $ docker run -p 5672:5672 rabbitmq
 ```
 
 - **Run RabbitMQ Management**
-  
+
 ```sh
 $ $ docker run -d --hostname my-rabbit --name some-rabbit -p 8080:15672 rabbitmq:3-management
 ```
@@ -122,5 +122,4 @@ $ $ docker run -d --hostname my-rabbit --name some-rabbit -p 8080:15672 rabbitmq
 
 ## Server testing vercel app
 
-- [Vercel App](https://pm-tool-api.vercel.app)
-- CURL => curl "https://pm-tool-api.vercel.app/socket.io/?EIO=4&transport=polling"
+- [Vercel App](https://pm-tool-worker.vercel.app/)
