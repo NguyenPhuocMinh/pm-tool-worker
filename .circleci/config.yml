@@ -2,25 +2,162 @@
 # See: https://circleci.com/docs/2.0/configuration-reference
 version: 2.1
 
+orbs:
+  gh: circleci/github-cli@2.0
+  docker: circleci/docker@2.1.4
+
+parameters:
+  nodeVersion:
+    description: Version node
+    type: string
+    default: "14.18.0"
+
 # Define a job to be invoked later in a workflow.
 # See: https://circleci.com/docs/2.0/configuration-reference/#jobs
 jobs:
-  say-hello:
-    # Specify the execution environment. You can specify an image from Dockerhub or use one of our Convenience Images from CircleCI's Developer Hub.
-    # See: https://circleci.com/docs/2.0/configuration-reference/#docker-machine-macos-windows-executor
+  ci:
     docker:
-      - image: cimg/base:stable
-    # Add steps to the job
-    # See: https://circleci.com/docs/2.0/configuration-reference/#steps
+      - image: cimg/node:<< pipeline.parameters.nodeVersion >>
     steps:
-      - checkout
+      # Clone repo on github
+      - gh/setup:
+          token: APP_GITHUB_TOKEN # get from context env
+
+      - gh/clone:
+          repo: $APP_REPO_URL
+
       - run:
-          name: "Say hello"
-          command: "echo Hello, World!"
+          name: Install Dependencies
+          command: npm install
+
+      # Download and cache dependencies
+      - restore_cache:
+          keys:
+            # Find a cache corresponding to this specific package.json checksum
+            # when this file is changed, this key will fail
+            - v1-dependencies-{{ checksum "package-lock.json" }}
+            # Find the most recently generated cache used from any branch
+            - v1-dependencies-
+
+      - save_cache:
+          paths:
+            - node_modules
+          key: v1-dependencies-{{ checksum "package-lock.json" }}
+
+      - run:
+          name: Run Check Linter
+          command: npm run lint:check
+
+      - store_artifacts:
+          path: /tmp/test-results
+          destination: raw-test-output
+
+      - store_test_results:
+          path: /tmp/test-results
+
+  cd:
+    executor: docker/docker
+    environment:
+      APP_DOCKER_TAG: v1.0.0
+      APP_HELM_TAG: 0.1.0
+    steps:
+      ## Build and push image to docker hub
+      - setup_remote_docker
+      - checkout
+      - docker/check:
+          docker-username: APP_DOCKER_USERNAME # get from context env
+          docker-password: APP_DOCKER_PASSWORD # get from context env
+
+      - docker/build:
+          image: $APP_DOCKER_IMAGE
+          tag: $APP_DOCKER_TAG
+
+      - docker/push:
+          digest-path: /tmp/digest.txt
+          image: $APP_DOCKER_IMAGE
+          tag: $APP_DOCKER_TAG
+
+      - run:
+          command: |
+            echo "Digest is: $(</tmp/digest.txt)"
+
+  # - run:
+  #     name: Install helm
+  #     command: |
+  #       curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 > get_helm.sh
+  #       chmod 700 get_helm.sh
+  #       ./get_helm.sh
+  #       # Check version helm
+  #       helm version --short | cut -d + -f 1
+
+  # - run:
+  #     name: Install aws cli
+  #     command: |
+  #       curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+  #       unzip awscliv2.zip
+  #       sudo ./aws/install
+  #       # Check version aws-cli
+  #       aws --version
+
+  # - run:
+  #     name: Aws configure
+  #     command: |
+  #       aws configure set aws_access_key_id $APP_AWS_ACCESS_KEY
+  #       aws configure set aws_secret_access_key $APP_AWS_SECRET_KEY
+  #       aws configure set default.region $APP_AWS_REGION
+
+  # - run:
+  #     name: Store helm chart to ECR
+  #     command: |
+  #       echo "Store helm chart to ECR start..."
+  #       cd charts
+  #       # Create package helm chart
+  #       helm package pm-tool-api
+  #       # Login aws ecr
+  #       aws ecr get-login-password \
+  #         --region $APP_AWS_REGION | helm registry login \
+  #         --username AWS \
+  #         --password-stdin $APP_AWS_ACCOUNT_ID.dkr.ecr.$APP_AWS_REGION.amazonaws.com
+  #       # Push to ecr
+  #       helm push pm-tool-api-$APP_HELM_TAG.tgz oci://$APP_AWS_ACCOUNT_ID.dkr.ecr.$APP_AWS_REGION.amazonaws.com/
+  #       echo "Store helm chart to ECR successfully!"
+
+  deploy:
+    executor: docker/docker
+    environment:
+      APP_HELM_TAG: 0.1.0
+    steps:
+      - setup_remote_docker
+      - add_ssh_keys:
+          fingerprints:
+            - $APP_SSH_FINGERPRINT
+
+      - run:
+          name: Deploy to EC2
+          command: |
+            ## SSH to the EC2 ubuntu to deploy
+            ssh -o StrictHostKeyChecking=no -v $APP_DEPLOYED_USER@$APP_HOST_NAME "./deploy.sh '$APP_AWS_REGION' '$APP_AWS_ACCOUNT_ID' '$APP_HELM_TAG' '$APP_BASE_PATH_REST_API' 'APP_MONGO_URI'"
 
 # Invoke jobs via workflows
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
 workflows:
-  say-hello-workflow:
+  pipelines:
     jobs:
-      - say-hello
+      - ci:
+          context: pm-tool-worker-context
+      - cd:
+          context: pm-tool-worker-context
+          requires:
+            - ci
+          filters:
+            branches:
+              only:
+                - master
+      # - deploy:
+      #     context: pm-tool-worker-context
+      #     requires:
+      #       - cd
+      #     filters:
+      #       branches:
+      #         only:
+      #           - master
