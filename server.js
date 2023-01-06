@@ -53,6 +53,11 @@ const main = async () => {
    * Subscriber
    */
   await amqpServices.subscriber(
+    constants.AMQP_QUEUES.TEST_QUEUE,
+    workers.handleTest,
+    true
+  );
+  await amqpServices.subscriber(
     constants.AMQP_QUEUES.SEND_NOTIFY_CHANGE_PASSWORD_QUEUE,
     workers.handleSendMailChangePassword,
     true
