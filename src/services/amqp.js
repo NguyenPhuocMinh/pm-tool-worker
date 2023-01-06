@@ -28,6 +28,11 @@ const Init = async () => {
       level: constants.LOG_LEVELS.INFO,
       message: `The RabbitMQ is running on ${APP_RABBIT_URI}`
     });
+
+    process.once('SIGINT', async () => {
+      await channel.close();
+      await conn.close();
+    });
   } catch (err) {
     logger.log({
       level: constants.LOG_LEVELS.ERROR,
@@ -50,7 +55,7 @@ const Init = async () => {
           }
         });
         if (current > options.retryOptions.retries) {
-          process.exit(0);
+          process.exit(1);
         }
         return err;
       }
@@ -85,8 +90,6 @@ const subscriber = async (queueName, workersHandleMsg, autoAck = true) => {
           msg: `${msg.content.toString()}`
         });
         await workersHandleMsg(msg);
-
-        // channel.ack(msg);
       },
       { noAck: autoAck }
     );
