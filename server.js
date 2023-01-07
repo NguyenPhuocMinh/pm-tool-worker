@@ -81,4 +81,5 @@ main().catch((err) => {
     message: 'The server has been error',
     err
   });
+  process.exit(1);
 });
